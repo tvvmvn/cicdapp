@@ -13,7 +13,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 자바 17 세팅
+    # 2. 자바 24 세팅
     - name: Set up JDK 24
       uses: actions/setup-java@v4
       with:
