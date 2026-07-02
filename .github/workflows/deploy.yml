@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 깃허브 로봇이 소스 코드를 가져옴
+    # 1. 깃허브 로봇이 가상 환경으로 소스 코드를 가져옴
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 자바 24 세팅
+    # 2. 가상 서버에 자바 24 세팅
     - name: Set up JDK 24
       uses: actions/setup-java@v4
       with:
@@ -25,7 +25,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew clean build -x test
+      run: ./gradlew clean build -x test # 빠른 배포를 위해 테스트는 제외
 
     # 4. 도커 허브 로그인
     - name: Log in to Docker Hub
@@ -43,7 +43,17 @@ jobs:
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/cicdapp:latest
 
-    # 6. EC2 원격 접속 후 배포 명령어 실행
+    # 5-1. docker-compose.yml 파일을 EC2 배포 폴더로 안전하게 전송 (SCP)
+    - name: Transfer docker-compose.yml to EC2
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "docker-compose.yml"
+        target: "/home/${{ secrets.EC2_USERNAME }}/app"
+
+    # 6. EC2 원격 접속 후 도커 컴포즈 가동 (SSH)
     - name: Deploy to EC2 via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -51,13 +61,19 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # 기존 컨테이너가 돌고 있으면 끄고 삭제
-          docker stop spring-web-app || true
-          docker rm spring-web-app || true
+          # 배포 폴더로 이동
+          cd /home/${{ secrets.EC2_USERNAME }}/app
           
-          # 안 쓰는 찌꺼기 이미지 삭제
+          # 💡 핵심: GitHub Secrets 기반으로 안전하게 실시간 현지 환경변수(.env) 파일 생성
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          
+          # 기존 컴포즈 컨테이너 종료 (떠있던 구버전 앱 다운)
+          docker-compose down || true
+          
+          # 찌꺼기 이미지 제거 후 도커허브로부터 신규 최신 이미지 다운로드
           docker image prune -f
+          docker-compose pull
           
-          # 최신 이미지 갱신 후 실행
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cicdapp:latest
-          docker run -d -p 8080:8080 --name spring-web-app ${{ secrets.DOCKERHUB_USERNAME }}/cicdapp:latest
+          # 💡 도커 컴포즈 백그라운드 원버튼 기동 수행
+          docker-compose up -d

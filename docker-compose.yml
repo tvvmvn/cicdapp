@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  web-app:
+    # 💡 GitHub Actions 빌드 시 주입될 도커 허브 이미지명을 환경 변수로 처리합니다.
+    image: ${DOCKERHUB_USERNAME}/cicdapp:latest
+    container_name: spring-web-app
+    # 💡 EC2 본체 네트워크를 공유하여 이미 설치된 MySQL 도커를 localhost(127.0.0.1)로 찌릅니다.
+    network_mode: "host"
+    environment:
+      - DB_HOST=127.0.0.1
+      - DB_NAME=cicdapp_db # 💡 요청하신 데이터베이스 이름으로 지정
+      - DB_PASSWORD=${DB_PASSWORD}
+    restart: always
