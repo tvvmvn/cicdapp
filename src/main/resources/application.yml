@@ -15,7 +15,7 @@ spring:
   jpa:
     hibernate:
       # 💡 초기 테이블 생성 및 시드 데이터 적재 후 재부팅 시 데이터가 날아가지 않도록 update를 사용합니다.
-      ddl-auto: update
+      ddl-auto: create
     properties:
       hibernate:
         show_sql: true
