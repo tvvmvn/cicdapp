@@ -66,6 +66,7 @@ jobs:
           
           # 💡 핵심: GitHub Secrets 기반으로 안전하게 실시간 현지 환경변수(.env) 파일 생성
           echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > .env
+          # 새 환경 변수를 그 아래에 추가합니다(>>)
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           
           # 기존 컴포즈 컨테이너 종료 (떠있던 구버전 앱 다운)
